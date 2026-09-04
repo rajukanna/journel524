@@ -1,0 +1,10 @@
+{
+  "name": "AI Journal",
+  "description": "A private reflective journaling companion powered by Gemini with location-aware Google Maps pinning, admin RBAC dashboard, and external notifications.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if requesting user has admin role
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.admin == true ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // Challenge verification match path
+    match /users/{userId}/interactions/{interactionId} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    // User profile document: user can read/write own, but cannot self-elevate to admin
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow create: if request.auth != null && request.auth.uid == userId &&
+        (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == 'user');
+      allow update: if request.auth != null && (
+        isAdmin() ||
+        (request.auth.uid == userId && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+          request.resource.data.role == resource.data.role
+        ))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Complete isolated per-user journaling tree (sessions, messages, settings)
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Admin audit logs: only admins can read or write
+    match /adminAuditLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
